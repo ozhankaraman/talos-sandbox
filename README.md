@@ -93,6 +93,7 @@ All configuration is done through environment variables. Here are the available 
 | `HARBOR_CONTAINERD_USERNAME` | - | **Yes** | Harbor registry username |
 | `HARBOR_CONTAINERD_PASSWORD` | - | **Yes** | Harbor registry password |
 | `TALOS_INSTALL_IMAGE` | `factory.talos.dev/installer/...` | **Yes** | Talos installer image |
+| `DEX_URL` | `xx` | **Yes** | Dex OIDC URL |
 | `LOCAL_CIDR` | `192.168.104.0/21` | **Yes** | Local network CIDR |
 | `CILIUM_VERSION` | `1.18.3` | **Yes** | Cilium CNI version |
 | `TALOS_VERSION` | `0.4.6` | **Yes** | Talos Cloud Controller Manager version |
@@ -110,6 +111,7 @@ export KUBERNETES_VERSION='1.32.7'
 export HARBOR_REGISTRY_URL='harbor.x.com'
 export HARBOR_CONTAINERD_USERNAME='username'
 export HARBOR_CONTAINERD_PASSWORD='password'
+export DEX_URL='dex.x.com'
 export TALOS_INSTALL_IMAGE='factory.talos.dev/installer/ce4c980550dd2ab1b17bbf2b08801c7eb59418eafe8f279833297925d67c7515:v1.9.6'
 export LOCAL_CIDR='192.168.0.0/24'
 export KUBECONFIG=$PWD/kubeconfig

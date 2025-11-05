@@ -1,0 +1,100 @@
+# The patches on this file applies to all nodes in kubernetes cluster
+machine:
+  kubelet:
+    nodeIP:
+      validSubnets:
+      - 10.8.64.0/18
+      - 10.8.128.0/18
+      - 10.8.0.0/20
+    extraConfig:
+      maxPods: 512
+    extraArgs:
+      cloud-provider: external
+    extraMounts:
+      # local-path-provisioner read-write mount point
+      - destination: /var/mnt/local-path-provisioner
+        type: bind
+        source: /var/mnt/local-path-provisioner
+        options:
+          - bind
+          - rshared
+          - rw
+  certSANs:
+  - $NLB_PUBLIC_IP
+  registries:
+    # Container Proxy Cache Definitions
+    mirrors:
+      docker.io:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/docker/
+          - https://registry-1.docker.io
+        overridePath: true
+      docker.elastic.co:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/elastic/
+          - https://docker.elastic.co
+        overridePath: true
+      ghcr.io:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/ghcr/
+          - https://ghcr.io
+        overridePath: true
+      registry.opensource.zalan.do:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/zalando/
+          - https://registry.opensource.zalan.do
+        overridePath: true
+      quay.io:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/quay/
+          - https://quay.io
+        overridePath: true
+      k8s.gcr.io:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/k8s/
+          - https://k8s.gcr.io
+        overridePath: true
+      registry.k8s.io:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/k8s/
+          - https://registry.k8s.io
+        overridePath: true
+      gcr.io:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/gcr/
+          - https://gcr.io
+        overridePath: true
+      registry.gitlab.com:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/gitlab/
+          - https://registry.gitlab.com
+        overridePath: true
+      public.ecr.aws:
+        endpoints:
+          - https://$HARBOR_REGISTRY_URL/v2/ecr/
+          - https://public.ecr.aws
+        overridePath: true
+    config:
+      $HARBOR_REGISTRY_URL:
+        auth:
+          username: $HARBOR_CONTAINERD_USERNAME
+          password: $HARBOR_CONTAINERD_PASSWORD
+  install:
+    image: $TALOS_INSTALL_IMAGE
+    wipe: true
+  # Grafana Alloy Syslog Logging Definitions
+  logging:
+    destinations:
+      - endpoint: "udp://alloy.observability.svc.cluster.local:5140"
+        format: json_lines
+
+cluster:
+  network:
+    # Example of IPv4 and IPv6 CIDR ranges, podSubnets-v6 will use as fallback for IPv6
+    podSubnets: ["10.32.0.0/12","fd00:10:32::/64"]
+    serviceSubnets: ["10.200.0.0/22","fd40:10:200::/108"]
+    cni:
+      name: none
+  controllerManager:
+    extraArgs:
+      controllers: "*,tokencleaner,-node-ipam-controller"

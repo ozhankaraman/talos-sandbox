@@ -1,0 +1,133 @@
+# The patches on this file applies to all control plane nodes in kubernete cluster, so controlplane server related configs needs to be included here
+
+# https://docs.siderolabs.com/talos/v1.9/reference/configuration/v1alpha1/config#apiserver
+
+cluster:
+  allowSchedulingOnControlPlanes: true
+  proxy:
+    disabled: true
+  discovery:
+    enabled: false
+  apiServer:
+    extraArgs:
+      oidc-issuer-url: https://$DEX_URL
+      oidc-client-id: kubernetes
+      oidc-username-claim: email
+      oidc-groups-claim: groups
+    auditPolicy:
+      # Kubernetes Audit Policy Definitios
+      apiVersion: audit.k8s.io/v1
+      kind: Policy
+      rules:
+        - level: None
+          users: ["system:kube-proxy"]
+          verbs: ["watch"]
+          resources:
+            - group: ""
+              resources: ["endpoints", "services", "services/status"]
+        - level: None
+          users: ["system:unsecured"]
+          namespaces: ["kube-system"]
+          verbs: ["get"]
+          resources:
+            - group: ""
+              resources: ["configmaps"]
+        - level: None
+          users: ["kubelet"] # legacy kubelet identity
+          verbs: ["get"]
+          resources:
+            - group: ""
+              resources: ["nodes", "nodes/status"]
+        - level: None
+          userGroups: ["system:nodes"]
+          verbs: ["get"]
+          resources:
+            - group: ""
+              resources: ["nodes", "nodes/status"]
+        - level: None
+          users:
+            - system:kube-controller-manager
+            - system:kube-scheduler
+            - system:serviceaccount:kube-system:endpoint-controller
+          verbs: ["get", "update"]
+          namespaces: ["kube-system"]
+          resources:
+            - group: ""
+              resources: ["endpoints"]
+        - level: None
+          users: ["system:apiserver"]
+          verbs: ["get"]
+          resources:
+            - group: ""
+              resources: ["namespaces", "namespaces/status", "namespaces/finalize"]
+        - level: None
+          users:
+            - system:kube-controller-manager
+          verbs: ["get", "list"]
+          resources:
+            - group: "metrics.k8s.io"
+        - level: None
+          nonResourceURLs:
+            - /healthz*
+            - /version
+            - /swagger*
+        - level: None
+          resources:
+            - group: ""
+              resources: ["events"]
+        - level: RequestResponse
+          resources:
+            - group: ""
+              resources: ["pods", "pods/ephemeralcontainers", "podtemplates", "replicationcontrollers"]
+            - group: "apps"
+              resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+            - group: "batch"
+              resources: ["cronjobs", "jobs"]
+          verbs: ["create", "update"]
+          omitStages:
+            - "RequestReceived"
+            - "ResponseStarted"
+            - "Panic"
+        - level: Metadata
+          resources:
+            - group: ""
+              resources: ["secrets", "configmaps", "serviceaccounts/token"]
+            - group: authentication.k8s.io
+              resources: ["tokenreviews"]
+          omitStages:
+            - "RequestReceived"
+        - level: Metadata
+          omitStages:
+            - "ResponseStarted"
+            - "ResponseComplete"
+    # Pod Security Policy Admission Controller Policy
+    # talosctl get admissioncontrolconfigs.kubernetes.talos.dev admission-control -o yaml 
+    admissionControl:
+      - name: PodSecurity
+        configuration:
+          apiVersion: pod-security.admission.config.k8s.io/v1
+          kind: PodSecurityConfiguration
+          defaults:
+            audit: restricted
+            audit-version: latest
+            # default value
+            # enforce: baseline
+            enforce: privileged
+            enforce-version: latest
+            # default value
+            # warn: restricted
+            warn: baseline
+            warn-version: latest
+          exemptions:
+            usernames: []
+            runtimeClasses: []
+            namespaces: []
+            #  - kube-system
+machine:
+  features:
+    kubernetesTalosAPIAccess:
+      enabled: true
+      allowedRoles:
+        - os:reader
+      allowedKubernetesNamespaces:
+        - kube-system
