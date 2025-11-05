@@ -2,7 +2,7 @@
 
 > Test, deploy, iterate your Talos configurations easily
 
-Automated deployment script for Talos Linux on Proxmox VMs with Kubernetes and Cilium CNI.
+Automated deployment script for Talos Linux on any VMs with Kubernetes and Cilium CNI.
 
 ---
 
@@ -47,9 +47,9 @@ The following files must exist in the deployment directory:
 
 ### Required Information
 
-- ✅ IP address of the Proxmox VM where Talos will be deployed
-- ✅ Harbor container registry credentials (username and password), If you dont have harbor you need to clean up it's definitions from patches.
-- ✅ Network CIDR for your local network
+- ✅ IP address of the VM where Talos will be deployed, on my tests I used Bare-Metal Machine iso(metal-amd.iso) from https://factory.talos.dev 
+- ✅ Harbor container registry credentials (username and password), If you dont have harbor or any proxy cache enabled repository you need to clean up it's definitions from patches.
+- ✅ Network CIDR for your local network where sandbox VM will run.
 
 ---
 
@@ -65,6 +65,7 @@ chmod +x deploy.sh
 
 ```bash
 export MASTER_IP=192.168.105.128
+export HARBOR_CONTAINERD_USERNAME=your-username-here
 export HARBOR_CONTAINERD_PASSWORD=your-password-here
 ```
 
@@ -86,55 +87,37 @@ All configuration is done through environment variables. Here are the available 
 
 | Variable | Default | Required | Description |
 |----------|---------|----------|-------------|
-| `MASTER_IP` | `192.168.105.128` | No | IP address of the Talos control plane node |
-| `KUBERNETES_VERSION` | `1.32.7` | No | Kubernetes version to deploy |
-| `HARBOR_CONTAINERD_USERNAME` | - | No | Harbor registry username |
+| `MASTER_IP` | `192.168.105.128` | **Yes** | IP address of the Talos control plane node |
+| `KUBERNETES_VERSION` | `1.32.7` | **Yes** | Kubernetes version to deploy |
+| `HARBOR_REGISTRY_URL` | - | **Yes** | Harbor registry address |
+| `HARBOR_CONTAINERD_USERNAME` | - | **Yes** | Harbor registry username |
 | `HARBOR_CONTAINERD_PASSWORD` | - | **Yes** | Harbor registry password |
-| `TALOS_INSTALL_IMAGE` | `factory.talos.dev/installer/...` | No | Talos installer image |
-| `LOCAL_CIDR` | `192.168.104.0/21` | No | Local network CIDR |
-| `CILIUM_VERSION` | `1.18.3` | No | Cilium CNI version |
-| `TALOS_VERSION` | `0.4.6` | No | Talos Cloud Controller Manager version |
+| `TALOS_INSTALL_IMAGE` | `factory.talos.dev/installer/...` | **Yes** | Talos installer image |
+| `LOCAL_CIDR` | `192.168.104.0/21` | **Yes** | Local network CIDR |
+| `CILIUM_VERSION` | `1.18.3` | **Yes** | Cilium CNI version |
+| `TALOS_VERSION` | `0.4.6` | **Yes** | Talos Cloud Controller Manager version |
 
 ### Configuration Examples
 
-#### Example 1: Minimal Configuration
-
-```bash
-export MASTER_IP=192.168.105.130
-export HARBOR_CONTAINERD_PASSWORD=mySecretPassword123
-./deploy.sh
-```
-
-#### Example 2: Custom Kubernetes Version
-
-```bash
-export MASTER_IP=192.168.105.131
-export HARBOR_CONTAINERD_PASSWORD=mySecretPassword123
-export KUBERNETES_VERSION=1.31.0
-./deploy.sh
-```
-
-#### Example 3: Full Custom Configuration
-
-```bash
-export MASTER_IP=192.168.105.132
-export HARBOR_CONTAINERD_PASSWORD=mySecretPassword123
-export KUBERNETES_VERSION=1.32.7
-export LOCAL_CIDR=10.0.0.0/16
-export CILIUM_VERSION=1.18.2
-./deploy.sh
-```
-
-#### Example 4: Using a Configuration File
+#### Example 1: Using a Configuration File
 
 Create a file named `config.env`:
 
 ```bash
-export MASTER_IP=192.168.105.128
-export HARBOR_CONTAINERD_PASSWORD=mySecretPassword123
-export KUBERNETES_VERSION=1.32.7
-export LOCAL_CIDR=192.168.104.0/21
-export CILIUM_VERSION=1.18.3
+# Configuration
+export MASTER_IP='192.168.0.18'
+export KUBERNETES_VERSION='1.32.7'
+export HARBOR_REGISTRY_URL='harbor.x.com'
+export HARBOR_CONTAINERD_USERNAME='username'
+export HARBOR_CONTAINERD_PASSWORD='password'
+export TALOS_INSTALL_IMAGE='factory.talos.dev/installer/ce4c980550dd2ab1b17bbf2b08801c7eb59418eafe8f279833297925d67c7515:v1.9.6'
+export LOCAL_CIDR='192.168.0.0/24'
+export KUBECONFIG=$PWD/kubeconfig
+export TALOSCONFIG=$PWD/talosconfig
+
+# Helm Configuration
+export CILIUM_VERSION='1.18.3'
+export TALOS_CCM_VERSION='0.4.6'
 ```
 
 Then source it before running:
@@ -176,8 +159,6 @@ After successful deployment, the following files will be created in the deployme
 | `controlplane.yaml` | Generated control plane configuration |
 | `worker.yaml` | Generated worker configuration (if applicable) |
 
-> ⚠️ **Important**: Never commit these files to version control!
-
 ---
 
 ## 💻 Usage After Deployment
@@ -211,6 +192,7 @@ talosctl -n <MASTER_IP> logs
 # Get system information
 talosctl -n <MASTER_IP> version
 talosctl -n <MASTER_IP> health
+talosctl -n <MASTER_IP> processes
 ```
 
 ---
@@ -330,27 +312,6 @@ The script is idempotent and can be run multiple times. To iterate on your confi
 3. Re-run `./deploy.sh`
 
 The `--force` flags ensure configurations are regenerated and reapplied.
-
----
-
-## 🔒 Security Notes
-
-- 🚨 **Never commit** `secrets.yaml`, `talosconfig`, or `kubeconfig` to version control
-- 🔑 Store `HARBOR_CONTAINERD_PASSWORD` securely (use a secrets manager)
-- 🔐 Restrict access to the deployment directory
-- 🔄 Regularly rotate Harbor credentials
-- 👥 Use RBAC to limit cluster access
-- 🛡️ Review and audit patch configurations before deployment
-
-**Add to `.gitignore`:**
-```gitignore
-secrets.yaml
-talosconfig
-kubeconfig
-controlplane.yaml
-worker.yaml
-config.env
-```
 
 ---
 
