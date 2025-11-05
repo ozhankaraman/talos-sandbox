@@ -48,7 +48,7 @@ The following files must exist in the deployment directory:
 ### Required Information
 
 - ✅ IP address of the Proxmox VM where Talos will be deployed
-- ✅ Harbor container registry credentials (username and password)
+- ✅ Harbor container registry credentials (username and password), If you dont have harbor you need to clean up it's definitions from patches.
 - ✅ Network CIDR for your local network
 
 ---
@@ -88,12 +88,12 @@ All configuration is done through environment variables. Here are the available 
 |----------|---------|----------|-------------|
 | `MASTER_IP` | `192.168.105.128` | No | IP address of the Talos control plane node |
 | `KUBERNETES_VERSION` | `1.32.7` | No | Kubernetes version to deploy |
-| `HARBOR_CONTAINERD_USERNAME` | `robot$k8s-pull-robot` | No | Harbor registry username |
+| `HARBOR_CONTAINERD_USERNAME` | - | No | Harbor registry username |
 | `HARBOR_CONTAINERD_PASSWORD` | - | **Yes** | Harbor registry password |
 | `TALOS_INSTALL_IMAGE` | `factory.talos.dev/installer/...` | No | Talos installer image |
 | `LOCAL_CIDR` | `192.168.104.0/21` | No | Local network CIDR |
 | `CILIUM_VERSION` | `1.18.3` | No | Cilium CNI version |
-| `CLOUD_CONTROLLER_MANIFEST` | `../../zsinfra-holos/deploy/...` | No | Path to cloud controller manifest |
+| `TALOS_VERSION` | `0.4.6` | No | Talos Cloud Controller Manager version |
 
 ### Configuration Examples
 
@@ -158,7 +158,7 @@ The script performs the following steps automatically:
 6. **✓ Config Application** - Applies configuration to the target node
 7. **✓ Cluster Bootstrap** - Bootstraps the Talos Kubernetes cluster
 8. **✓ Kubeconfig Generation** - Creates kubectl configuration file
-9. **✓ Cloud Controller** - Deploys Talos cloud controller (if manifest exists)
+9. **✓ Talos Cloud Controller Manager** - Installs Talos CCM
 10. **✓ Cilium Installation** - Installs and configures Cilium CNI
 11. **✓ Health Check** - Waits for all pods to become ready
 
@@ -226,6 +226,7 @@ If the script fails waiting for the node to become reachable:
 - Incorrect IP address
 - Network connectivity issues
 - Talos not booted properly
+- Harbor setup problems
 
 **Solutions:**
 
