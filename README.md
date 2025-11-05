@@ -93,7 +93,7 @@ All configuration is done through environment variables. Here are the available 
 | `HARBOR_CONTAINERD_USERNAME` | - | **Yes** | Harbor registry username |
 | `HARBOR_CONTAINERD_PASSWORD` | - | **Yes** | Harbor registry password |
 | `TALOS_INSTALL_IMAGE` | `factory.talos.dev/installer/...` | **Yes** | Talos installer image |
-| `DEX_URL` | `xx` | **Yes** | Dex OIDC URL |
+| `DEX_URL` | - | **Yes** | Dex OIDC URL |
 | `LOCAL_CIDR` | `192.168.104.0/21` | **Yes** | Local network CIDR |
 | `CILIUM_VERSION` | `1.18.3` | **Yes** | Cilium CNI version |
 | `TALOS_VERSION` | `0.4.6` | **Yes** | Talos Cloud Controller Manager version |
