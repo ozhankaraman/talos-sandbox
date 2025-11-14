@@ -9,6 +9,8 @@ cluster:
   discovery:
     enabled: false
   apiServer:
+    certSANs:
+      - $API_SERVER_CERT_SAN_1
     extraArgs:
       oidc-issuer-url: https://$DEX_URL
       oidc-client-id: kubernetes

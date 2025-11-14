@@ -42,6 +42,7 @@ LOCAL_CIDR="${LOCAL_CIDR:-}"
 # Helm Configuration
 CILIUM_VERSION="${CILIUM_VERSION:-}"
 TALOS_CCM_VERSION="${TALOS_CCM_VERSION:-}"
+LOCAL_PATH_PROVISIONER_VERSION="${LOCAL_PATH_PROVISIONER_VERSION:-}"
 
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -287,6 +288,39 @@ main() {
             --set k8sServicePort=7445 \
             --set operator.replicas=1
     fi
+
+    # Install Local Path Provisioner
+    if ! [ -z "$CILIUM_VERSION" ]; then
+        log_info "Installing Local Path Provisioner..."
+
+        rm -rf local-path-provisioner
+        git clone https://github.com/rancher/local-path-provisioner -b "${LOCAL_PATH_PROVISIONER_VERSION}"
+        cat << EOF > local-path-provisioner/values.yaml
+nodePathMap:
+  - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+    paths:
+      - /var/mnt/local-path-provisioner
+
+storageClass:
+  defaultClass: true
+  name: local-path
+  reclaimPolicy: Delete
+  volumeBindingMode: WaitForFirstConsumer
+
+helperPod:
+  image: busybox:latest
+
+namespace: local-path-provisioner
+EOF
+
+        helm upgrade --install local-path-storage \
+          --create-namespace --namespace local-path-provisioner \
+          ./local-path-provisioner/deploy/chart/local-path-provisioner \
+          -f local-path-provisioner/values.yaml
+
+        rm -rf local-path-provisioner
+    fi
+    
     # Wait for all pods to be ready
     wait_for_pods
 
