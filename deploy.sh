@@ -43,6 +43,8 @@ LOCAL_CIDR="${LOCAL_CIDR:-}"
 CILIUM_VERSION="${CILIUM_VERSION:-}"
 TALOS_CCM_VERSION="${TALOS_CCM_VERSION:-}"
 LOCAL_PATH_PROVISIONER_VERSION="${LOCAL_PATH_PROVISIONER_VERSION:-}"
+METALLB_VERSION="${METALLB_VERSION:-}"
+METALLB_DEFAULT_IP_POOL="${METALLB_DEFAULT_IP_POOL:-}"
 
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -168,6 +170,26 @@ wait_for_pods() {
     }
 }
 
+# Wait for test pods to be in ready state
+run_tests() {
+    log_info "Running Tests"
+    kubectl apply -f nginx_test_pod.yaml
+
+    # Wait for deployment with warning
+    kubectl wait --for=condition=available deployment/nginx-deployment -n default --timeout=600s || {
+        log_warn "Deployment not fully ready within timeout"
+        log_warn "Current status:"
+        kubectl get deployment nginx-deployment -n default
+        kubectl get pods -l app=nginx -n default
+    }
+
+    log_info "Test deployment completed"
+    kubectl get svc -n default nginx-service
+    log_info "Deleting test deployment"
+    kubectl delete -f nginx_test_pod.yaml
+
+}
+
 # Main deployment
 main() {
     log_info "Starting Talos Kubernetes deployment"
@@ -248,6 +270,7 @@ main() {
             oci://ghcr.io/siderolabs/charts/talos-cloud-controller-manager \
             --version "$TALOS_CCM_VERSION" \
             --namespace kube-system \
+	    --wait --wait-for-jobs \
             --set logVerbosityLevel=4 \
             --set enabledControllers[0]=cloud-node \
             --set enabledControllers[1]=node-csr-approval \
@@ -278,6 +301,7 @@ main() {
             cilium/cilium \
             --version "$CILIUM_VERSION" \
             --namespace kube-system \
+	    --wait --wait-for-jobs \
             --set ipam.mode=kubernetes \
             --set kubeProxyReplacement=true \
             --set securityContext.capabilities.ciliumAgent="{CHOWN,KILL,NET_ADMIN,NET_RAW,IPC_LOCK,SYS_ADMIN,SYS_RESOURCE,DAC_OVERRIDE,FOWNER,SETGID,SETUID}" \
@@ -290,7 +314,7 @@ main() {
     fi
 
     # Install Local Path Provisioner
-    if ! [ -z "$CILIUM_VERSION" ]; then
+    if ! [ -z "$LOCAL_PATH_PROVISIONER_VERSION" ]; then
         log_info "Installing Local Path Provisioner..."
 
         rm -rf local-path-provisioner
@@ -315,16 +339,60 @@ EOF
 
         helm upgrade --install local-path-storage \
           --create-namespace --namespace local-path-provisioner \
+	  --wait --wait-for-jobs \
           ./local-path-provisioner/deploy/chart/local-path-provisioner \
           -f local-path-provisioner/values.yaml
 
         rm -rf local-path-provisioner
     fi
-    
+
+    # Deploy metallb for LoadBalancer Support
+    if ! [ -z "$METALLB_VERSION" ]; then
+        log_info "Installing MetalLB LoadBalancer Controller"
+
+        helm repo add metallb https://metallb.github.io/metallb
+        helm repo update
+
+        helm upgrade --install \
+          --version $METALLB_VERSION \
+          --create-namespace --namespace metallb \
+	  --wait --wait-for-jobs \
+          --set speaker.ignoreExcludeLB=true \
+          metallb metallb/metallb
+    fi
+
     # Wait for all pods to be ready
     wait_for_pods
 
-    log_info "Deployment completed successfully!"
+    # Customisation which needs to be run after CRDs are deployed
+    if ! [ -z "$METALLB_DEFAULT_IP_POOL" ]; then
+        cat << EOF > /tmp/metallb_L2Advertisement$$
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: l2-ip
+  namespace: metallb
+spec:
+  ipAddressPools:
+  - default-ip-pool
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default-ip-pool
+  namespace: metallb
+spec:
+  addresses:
+  - $METALLB_DEFAULT_IP_POOL
+EOF
+
+        kubectl apply -f /tmp/metallb_L2Advertisement$$
+        rm -f /tmp/metallb_L2Advertisement$$
+    fi
+
+    # Run tests to check nginx deployed successfully
+    run_tests
+
     log_info "Kubeconfig: $KUBECONFIG"
     log_info "Talosconfig: $TALOSCONFIG"
     log_info ""
