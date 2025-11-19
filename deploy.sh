@@ -173,7 +173,7 @@ wait_for_pods() {
 # Wait for test pods to be in ready state
 run_tests() {
     log_info "Running Tests"
-    kubectl apply -f nginx_test_pod.yaml
+    kubectl apply -f nginx_test_deployment.yaml
 
     # Wait for deployment with warning
     kubectl wait --for=condition=available deployment/nginx-deployment -n default --timeout=600s || {
@@ -184,9 +184,10 @@ run_tests() {
     }
 
     log_info "Test deployment completed"
+    kubectl get pvc -n default
     kubectl get svc -n default nginx-service
     log_info "Deleting test deployment"
-    kubectl delete -f nginx_test_pod.yaml
+    kubectl delete -f nginx_test_deployment.yaml
 
 }
 
