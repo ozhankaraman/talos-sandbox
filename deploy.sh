@@ -102,7 +102,7 @@ wait_for_control_plane() {
     log_info "Waiting for control plane components to be ready..."
     local retries=60
     local count=0
-    
+
     while true; do
         count=$((count + 1))
         if [ $count -ge $retries ]; then
@@ -110,27 +110,27 @@ wait_for_control_plane() {
             kubectl get pods -n kube-system || true
             exit 1
         fi
-        
+
         # Check if kube-apiserver, kube-controller-manager, and kube-scheduler are running
         local api_ready=$(kubectl get pods -n kube-system -l component=kube-apiserver --no-headers 2>/dev/null | grep "Running" | wc -l)
         local controller_ready=$(kubectl get pods -n kube-system -l component=kube-controller-manager --no-headers 2>/dev/null | grep "Running" | wc -l)
         local scheduler_ready=$(kubectl get pods -n kube-system -l component=kube-scheduler --no-headers 2>/dev/null | grep "Running" | wc -l)
-        
+
         # Trim whitespace
         api_ready=$(echo "$api_ready" | tr -d '[:space:]')
         controller_ready=$(echo "$controller_ready" | tr -d '[:space:]')
         scheduler_ready=$(echo "$scheduler_ready" | tr -d '[:space:]')
-        
+
         if [ "$api_ready" -ge 1 ] 2>/dev/null && [ "$controller_ready" -ge 1 ] 2>/dev/null && [ "$scheduler_ready" -ge 1 ] 2>/dev/null; then
             echo
             log_info "Control plane components are running!"
             break
         fi
-        
+
         echo -n "."
         sleep 5
     done
-    
+
     # Additional wait to ensure API server is fully stable
     log_info "Waiting for API server to stabilize..."
     sleep 10
@@ -141,7 +141,7 @@ wait_for_api_resources() {
     log_info "Waiting for Kubernetes API resources to be available..."
     local retries=30
     local count=0
-    
+
     while true; do
         count=$((count + 1))
         if [ $count -ge $retries ]; then
@@ -149,14 +149,14 @@ wait_for_api_resources() {
             kubectl api-resources || true
             exit 1
         fi
-        
+
         # Check if ServiceAccount API is available
         if kubectl api-resources --api-group="" -o name 2>/dev/null | grep -q "serviceaccounts"; then
             echo
             log_info "API resources are available!"
             break
         fi
-        
+
         echo -n "."
         sleep 2
     done
