@@ -103,7 +103,7 @@ cluster:
             - "ResponseStarted"
             - "ResponseComplete"
     # Pod Security Policy Admission Controller Policy
-    # talosctl get admissioncontrolconfigs.kubernetes.talos.dev admission-control -o yaml 
+    # talosctl get admissioncontrolconfigs.kubernetes.talos.dev admission-control -o yaml
     admissionControl:
       - name: PodSecurity
         configuration:

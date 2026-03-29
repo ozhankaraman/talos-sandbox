@@ -52,6 +52,8 @@ export NLB_PUBLIC_IP="$MASTER_IP"
 export TALOSCONFIG="${SCRIPT_DIR}/talosconfig"
 export KUBECONFIG="${SCRIPT_DIR}/kubeconfig"
 
+# Extra
+TALOS_INSTALL_IMAGE_VERSION=`echo $TALOS_INSTALL_IMAGE | cut -d':' -f2`
 
 # Validate IP address
 validate_ip() {
@@ -217,10 +219,14 @@ main() {
     log_info "Processing patch files..."
     envsubst < patch_controlplane.yaml > /tmp/patch_controlplane_out.yaml
     envsubst < patch.yaml > /tmp/patch_out.yaml
-    yq -y --arg subnet "$LOCAL_CIDR" \
-        '.machine.kubelet.nodeIP.validSubnets += [$subnet]' \
+
+    yq eval '(.machine.kubelet.nodeIP.validSubnets) += [env(LOCAL_CIDR)]' \
         /tmp/patch_out.yaml > /tmp/patch_out.yaml.$$ && \
         mv /tmp/patch_out.yaml.$$ /tmp/patch_out.yaml
+    # yq -y --arg subnet "$LOCAL_CIDR" \
+    #     '.machine.kubelet.nodeIP.validSubnets += [$subnet]' \
+    #    /tmp/patch_out.yaml > /tmp/patch_out.yaml.$$ && \
+    #    mv /tmp/patch_out.yaml.$$ /tmp/patch_out.yaml
 
     # Generate Talos configuration
     log_info "Generating Talos configuration..."
@@ -230,7 +236,8 @@ main() {
         --config-patch-control-plane @/tmp/patch_controlplane_out.yaml \
         --config-patch @/tmp/patch_out.yaml \
         --force \
-        --kubernetes-version "$KUBERNETES_VERSION"
+        --kubernetes-version "$KUBERNETES_VERSION" \
+        --talos-version "$TALOS_INSTALL_IMAGE_VERSION"
 
     # Configure talosctl
     log_info "Configuring talosctl endpoints..."
@@ -271,7 +278,7 @@ main() {
             oci://ghcr.io/siderolabs/charts/talos-cloud-controller-manager \
             --version "$TALOS_CCM_VERSION" \
             --namespace kube-system \
-	    --wait --wait-for-jobs \
+	        --wait --wait-for-jobs \
             --set logVerbosityLevel=4 \
             --set enabledControllers[0]=cloud-node \
             --set enabledControllers[1]=node-csr-approval \
@@ -283,6 +290,9 @@ main() {
             --set daemonSet.enabled=true \
             --set tolerations[0].effect=NoSchedule \
             --set tolerations[0].operator=Exists
+
+#             --set cloudConfig.global.preferIPv6=false \
+#             --set cloudConfig.global.dualStack=true \
 
     else
         log_warn "Cloud controller manifest not found at: $CLOUD_CONTROLLER_MANIFEST"
@@ -302,7 +312,7 @@ main() {
             cilium/cilium \
             --version "$CILIUM_VERSION" \
             --namespace kube-system \
-	    --wait --wait-for-jobs \
+	        --wait --wait-for-jobs \
             --set ipam.mode=kubernetes \
             --set kubeProxyReplacement=true \
             --set securityContext.capabilities.ciliumAgent="{CHOWN,KILL,NET_ADMIN,NET_RAW,IPC_LOCK,SYS_ADMIN,SYS_RESOURCE,DAC_OVERRIDE,FOWNER,SETGID,SETUID}" \

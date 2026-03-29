@@ -1,5 +1,20 @@
+# https://oneuptime.com/blog/post/2026-03-03-configure-ipv6-on-talos-linux/view
+#
 # The patches on this file applies to all nodes in kubernetes cluster
 machine:
+  network:
+    interfaces:
+      - interface: ens18   # replace with your actual interface name
+        dhcp: true
+        dhcpOptions:
+          ipv6: true
+  sysctls:
+    # net.ipv6.conf.ens18.accept_ra: "1"
+    # net.ipv6.conf.ens18.autoconf: "1"
+    net.ipv6.conf.all.accept_ra: "2"
+    net.ipv6.conf.all.autoconf: "1"
+    net.ipv6.conf.default.accept_ra: "2"
+    net.ipv6.conf.default.autoconf: "1"
   kubelet:
     nodeIP:
       validSubnets:
